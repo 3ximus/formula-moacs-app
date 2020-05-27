@@ -19,9 +19,7 @@ from sound_player import SoundPlayer
 APP_NAME = "UsefulData"
 
 # FOLDER PATHS
-PERSONALBESTDIR = "apps/python/Sidekick/personal_best/"
 COMPOUNDSPATH = "apps/python/%s/compounds/" % APP_NAME
-BRAKESDIR = "apps/python/%s/brakes/" % APP_NAME
 
 # ERS MODES TEXT
 ERS_MODES = ['Charging', 'Low', 'High', 'Overtake', 'Speed', 'Hotlap']
@@ -59,12 +57,6 @@ tyreTemperatureValueM = [0] * 4
 tyreTemperatureValueO = [0] * 4
 tyrePressureValue = [0] * 4
 tyrePracticalTemperatureValue = [0] * 4
-#brakes
-minimumOptimalBrakeTemperatureFront = 0
-maximumOptimalBrakeTemperatureFront = 0
-minimumOptimalBrakeTemperatureRear = 0
-maximumOptimalBrakeTemperatureRear = 0
-brakeTemperatureValue = [0] * 4
 
 #fuel
 fuelAmountValue = 0
@@ -75,23 +67,6 @@ fuelPerLapValue = 0
 
 carWasInPit = 0
 currentLapValue = 0
-
-# #laps timings
-# currentLapValueMinutes = 0
-# currentLapValueSeconds = 0
-# lastLapValue = 0
-# lastLapValueMinutes = 0
-# lastLapValueSeconds = 0
-# bestLapValue = 0
-# previousBestLapValue = 0
-# bestLapValueMinutes = 0
-# bestLapValueSeconds = 0
-# personalBestLapValue = 0
-# previousPersonalBestLapValue = 0
-# personalBestLapValueMinutes = 0
-# personalBestLapValueSeconds = 0
-# lapValidityValue = 0
-# lapWasInvalid = 0
 
 previousLapValue = 0
 lapValue = 0
@@ -113,28 +88,26 @@ soundPlaying = False
 temperatureTransitionRange = 20.0
 
 # labels and ui data collected
-tyreLabelFL, tyreLabelFR, tyreLabelRL, tyreLabelRR = None, None, None, None
+tyreLabels = [None] * 4
+tyrePressureLabels = [None] * 4
 drsLabel, ersModeLabel, fuelLabel, drsPenaltyLabel = None, None, None, None
-compounds, modCompounds, brakes, modBrakes = None, None, None, None
+compounds, modCompounds  = None, None
 carValue, trackConfigValue, trackValue = None, None, None
 # filePersonalBest = None
 
 def acMain(ac_version):
-    global tyreLabelFL, tyreLabelFR, tyreLabelRL, tyreLabelRR
+    global tyreLabels, tyrePressureLabels
     global drsLabel, ersModeLabel, fuelLabel, drsPenaltyLabel
 
     global drsData, totalDrivers, trackLength
 
     global carValue, trackConfigValue, trackValue
-    # global filePersonalBest, personalBestLapValue, personalBestLapValueMinutes, personalBestLapValueSeconds
 
-    global compounds, modCompounds, brakes, modBrakes
+    global compounds, modCompounds
 
     carValue = ac.getCarName(0)
     trackValue = ac.getTrackName(0)
     trackConfigValue = ac.getTrackConfiguration(0)
-
-    # filePersonalBest = PERSONALBESTDIR + carValue + "_" + trackValue + trackConfigValue + "_pb.ini"
 
     drsData = drs()
     totalDrivers = ac.getCarsCount()
@@ -144,10 +117,6 @@ def acMain(ac_version):
     compounds.read(COMPOUNDSPATH + "compounds.ini")
     modCompounds = configparser.ConfigParser()
     modCompounds.read(COMPOUNDSPATH + carValue + ".ini")
-    brakes = configparser.ConfigParser()
-    brakes.read(BRAKESDIR + "brakes.ini")
-    modBrakes = configparser.ConfigParser()
-    modBrakes.read(BRAKESDIR + carValue + ".ini")
 
     ac.initFont(0, "Roboto", 1, 1)
 
@@ -155,53 +124,58 @@ def acMain(ac_version):
     ac.setTitle(appWindow, "")
     ac.drawBorder(appWindow, 0)
     ac.setIconPosition(appWindow, 0, -10000)
-    ac.setSize(appWindow, 400, 50)
+    ac.setSize(appWindow, 300, 60)
     ac.setBackgroundOpacity(appWindow, 0.2)
-    # TODO add background
-    # ac.setBackgroundTexture(appWindow, filename)
 
     # =================================================================================================================
     #                                             TYRE LABELS
     # =================================================================================================================
 
-    #Tyre FL
-    tyreLabelFL = ac.addLabel(appWindow, "1FL")
-    ac.setPosition(tyreLabelFL, 12, 0)
-    ac.setFontSize(tyreLabelFL, 16)
-    ac.setCustomFont(tyreLabelFL, "Roboto", 1, 0)
-    ac.setFontColor(tyreLabelFL, 0.86, 0.86, 0.86, 1)
-    ac.setFontAlignment(tyreLabelFL, "center")
+    tyreLabelFL = ac.addLabel(appWindow, "TFL")
+    tyreLabelFR = ac.addLabel(appWindow, "TFR")
+    tyreLabelRL = ac.addLabel(appWindow, "TRL")
+    tyreLabelRR = ac.addLabel(appWindow, "TRR")
+    tyreLabels = [tyreLabelFL, tyreLabelFR, tyreLabelRL, tyreLabelRR]
+    for label in tyreLabels:
+        ac.setFontSize(label, 15)
+        ac.setFontColor(label, 0, 0, 0, 1)
+        ac.setFontAlignment(label, "center")
+        ac.setSize(label, 23, 25)
 
-    #Tyre FR
-    tyreLabelFR = ac.addLabel(appWindow, "1FR")
-    ac.setPosition(tyreLabelFR, 39, 0)
-    ac.setFontSize(tyreLabelFR, 16)
-    ac.setCustomFont(tyreLabelFR, "Roboto", 1, 0)
-    ac.setFontColor(tyreLabelFR, 0.86, 0.86, 0.86, 1)
-    ac.setFontAlignment(tyreLabelFR, "center")
+    tyrePressureLabelFL = ac.addLabel(appWindow, "PFL")
+    tyrePressureLabelFR = ac.addLabel(appWindow, "PFR")
+    tyrePressureLabelRL = ac.addLabel(appWindow, "PRL")
+    tyrePressureLabelRR = ac.addLabel(appWindow, "PRR")
+    tyrePressureLabels = [tyrePressureLabelFL, tyrePressureLabelFR, tyrePressureLabelRL, tyrePressureLabelRR]
+    for label in tyrePressureLabels:
+        ac.setFontSize(label, 15)
+        ac.setFontColor(label, 0.86, 0.86, 0.86, 1)
 
-    #Tyre RL
-    tyreLabelRL = ac.addLabel(appWindow, "1RL")
-    ac.setPosition(tyreLabelRL, 12, 20)
-    ac.setFontSize(tyreLabelRL, 16)
-    ac.setCustomFont(tyreLabelRL, "Roboto", 1, 0)
-    ac.setFontColor(tyreLabelRL, 0.86, 0.86, 0.86, 1)
-    ac.setFontAlignment(tyreLabelRL, "center")
+    ac.setFontAlignment(tyrePressureLabels[0], "left")
+    ac.setFontAlignment(tyrePressureLabels[1], "right")
+    ac.setFontAlignment(tyrePressureLabels[2], "left")
+    ac.setFontAlignment(tyrePressureLabels[3], "right")
 
-    #Tyre RR
-    tyreLabelRR = ac.addLabel(appWindow, "1RR")
-    ac.setPosition(tyreLabelRR, 39, 20)
-    ac.setFontSize(tyreLabelRR, 16)
-    ac.setCustomFont(tyreLabelRR, "Roboto", 1, 0)
-    ac.setFontColor(tyreLabelRR, 0.86, 0.86, 0.86, 1)
-    ac.setFontAlignment(tyreLabelRR, "center")
+    #position all the labels
+    tlpx = 60
+    tlpy = 0
+
+    ac.setPosition(tyreLabels[0], tlpx + 30, tlpy + 0)
+    ac.setPosition(tyreLabels[1], tlpx + 57, tlpy + 0)
+    ac.setPosition(tyreLabels[2], tlpx + 30, tlpy + 28)
+    ac.setPosition(tyreLabels[3], tlpx + 57, tlpy + 28)
+
+    ac.setPosition(tyrePressureLabels[0], tlpx, tlpy + 0)
+    ac.setPosition(tyrePressureLabels[1], tlpx + 120, tlpy + 0)
+    ac.setPosition(tyrePressureLabels[2], tlpx, tlpy + 28)
+    ac.setPosition(tyrePressureLabels[3], tlpx + 120, tlpy + 28)
 
     # =================================================================================================================
     #                                      ERS MODES LABELS
     # =================================================================================================================
 
     ersModeLabel = ac.addLabel(appWindow, "🗲 0 0")
-    ac.setPosition(ersModeLabel, 60, 20)
+    ac.setPosition(ersModeLabel, 10, 20)
     ac.setFontSize(ersModeLabel, 18)
     ac.setCustomFont(ersModeLabel, "Roboto", 0, 0)
     ac.setFontColor(ersModeLabel, 1.0, 1.0, 0.2, 1)
@@ -212,7 +186,7 @@ def acMain(ac_version):
     # =================================================================================================================
 
     fuelLabel = ac.addLabel(appWindow, "💧 --.- Laps")
-    ac.setPosition(fuelLabel, 60, 0)
+    ac.setPosition(fuelLabel, 10, 0)
     ac.setFontSize(fuelLabel, 18)
     ac.setCustomFont(fuelLabel, "Roboto", 0, 0)
     ac.setFontColor(fuelLabel, 0.86, 0.86, 0.86, 1)
@@ -240,7 +214,7 @@ def acMain(ac_version):
 
 def acUpdate(deltaT):
     global timer0, timer1
-    global tyreLabelFL, tyreLabelFR, tyreLabelRL, tyreLabelRR
+    global tyreLabels, tyrePressureLabels
     global drsLabel, ersModeLabel, fuelLabel, drsPenaltyLabel
     global carValue, trackConfigValue, trackValue
 
@@ -251,12 +225,12 @@ def acUpdate(deltaT):
 
     # global currentLapValueMinutes, currentLapValueSeconds, lastLapValue, lastLapValueMinutes, lastLapValueSeconds, bestLapValue, previousBestLapValue, bestLapValueMinutes, bestLapValueSeconds, personalBestLapValue, previousPersonalBestLapValue, personalBestLapValueMinutes, personalBestLapValueSeconds, lapValidityValue, lapWasInvalid
 
-    global tyreCompoundShort, tyreCompoundCleaned, previousTyreCompoundValue, minimumOptimalTemperature, maximumOptimalTemperature, idealPressureFront, idealPressureRear, minimumOptimalBrakeTemperatureFront, maximumOptimalBrakeTemperatureFront, minimumOptimalBrakeTemperatureRear, maximumOptimalBrakeTemperatureRear
-    global tyreWearValue, tyreTemperatureValue, tyreTemperatureValueI, tyreTemperatureValueM, tyreTemperatureValueO, tyrePressureValue, brakeTemperatureValue, tyreCompoundValue
+    global tyreCompoundShort, tyreCompoundCleaned, previousTyreCompoundValue, minimumOptimalTemperature, maximumOptimalTemperature, idealPressureFront, idealPressureRear
+    global tyreWearValue, tyreTemperatureValue, tyreTemperatureValueI, tyreTemperatureValueM, tyreTemperatureValueO, tyrePressureValue, tyreCompoundValue
     global temperatureTransitionRange, tyrePracticalTemperatureValue
     global fuelAmountValue, fuelStartValue, relevantLapsNumber, fuelSpentValue, fuelPerLapValue
 
-    global compounds, modCompounds, brakes, modBrakes
+    global compounds, modCompounds
 
     timer0 += deltaT
     timer1 += deltaT
@@ -277,7 +251,6 @@ def acUpdate(deltaT):
         tyreTemperatureValueM = info.physics.tyreTempM
         tyreTemperatureValueO = info.physics.tyreTempO
         tyrePressureValue = info.physics.wheelsPressure
-        brakeTemperatureValue = info.physics.brakeTemp
 
         totalLapsValue = info.graphics.numberOfLaps
         fuelAmountValue = info.physics.fuel
@@ -286,7 +259,7 @@ def acUpdate(deltaT):
             carWasInPit = 1
 
         # =================================================================================================================
-        #                                   SET IDEAL BRAKE TEMPERATURES AND TYRE PRESSURES
+        #                                   SET IDEAL TYRE PRESSURES AND TEMPERATURES
         # =================================================================================================================
         if previousTyreCompoundValue != tyreCompoundValue:
             previousTyreCompoundValue = tyreCompoundValue
@@ -313,27 +286,6 @@ def acUpdate(deltaT):
                     ac.console("Error loading mod tyre data.")
             else:
                 ac.console("Tyres: {}, no data found".format(tyreCompoundValue))
-
-            if brakes.has_section(carValue):
-                try:
-                    minimumOptimalBrakeTemperatureFront = int(brakes.get(carValue, "MIN_OPTIMAL_TEMP_F"))
-                    maximumOptimalBrakeTemperatureFront = int(brakes.get(carValue, "MAX_OPTIMAL_TEMP_F"))
-                    minimumOptimalBrakeTemperatureRear = int(brakes.get(carValue, "MIN_OPTIMAL_TEMP_R"))
-                    maximumOptimalBrakeTemperatureRear = int(brakes.get(carValue, "MAX_OPTIMAL_TEMP_R"))
-                    ac.console("Brakes: {}°C-{}°C (F), {}°C-{}°C (R)".format(minimumOptimalBrakeTemperatureFront, maximumOptimalBrakeTemperatureFront, minimumOptimalBrakeTemperatureRear, maximumOptimalBrakeTemperatureRear))
-                except:
-                    ac.console("Error loading brake data.")
-            elif modBrakes.has_section(carValue):
-                try:
-                    minimumOptimalBrakeTemperatureFront = int(modBrakes.get(carValue, "MIN_OPTIMAL_TEMP_F"))
-                    maximumOptimalBrakeTemperatureFront = int(modBrakes.get(carValue, "MAX_OPTIMAL_TEMP_F"))
-                    minimumOptimalBrakeTemperatureRear = int(modBrakes.get(carValue, "MIN_OPTIMAL_TEMP_R"))
-                    maximumOptimalBrakeTemperatureRear = int(modBrakes.get(carValue, "MAX_OPTIMAL_TEMP_R"))
-                    ac.console("Brakes: {}°C-{}°C (F), {}°C-{}°C (R)".format(minimumOptimalBrakeTemperatureFront, maximumOptimalBrakeTemperatureFront, minimumOptimalBrakeTemperatureRear, maximumOptimalBrakeTemperatureRear))
-                except:
-                    ac.console("Error loading mod brake data.")
-            else:
-                ac.console("Brakes: no data found")
 
     # 10 times per second
     if timer1 > 0.1:
@@ -467,9 +419,6 @@ def acUpdate(deltaT):
                 inDrsZone = True
                 drsPenAwarded = False
 
-                ac.console('I crossed DRS')
-                ac.log('I crossed DRS')
-
                 #DRS from lap x
                 if info.graphics.completedLaps+1 >= DRS_STARTS_ON_LAP:
                     #check for 1s rule
@@ -541,7 +490,7 @@ def acUpdate(deltaT):
                     if totalPenalty < 0:
                         ac.setVisible(drsPenaltyLabel, 0)
 
-                if not drsEnabledValue:
+                if not drsEnabledValue and drsAvailableValue:
                     if drsValid:
                         ac.setFontColor(drsLabel, *DRS_AVAILABLE)
                     else: # turn of the sound
@@ -564,7 +513,6 @@ def acUpdate(deltaT):
             lastList = driverList
             lastDRSLevel = info.physics.drs
 
-
         # =================================================================================================================
         #                                              ERS LABEL
         # =================================================================================================================
@@ -582,26 +530,39 @@ def acUpdate(deltaT):
             ac.setText(fuelLabel, "💧 {:.1f} Laps".format(fuelAmountValue / fuelPerLapValue))
 
         # =================================================================================================================
-        #                                              TYRE TEMPERATURES
+        #                                          TYRE TEMPERATURES
         # =================================================================================================================
 
         for i in range(4):
             tyrePracticalTemperatureValue[i] = 0.25 * ((tyreTemperatureValueI[i] + tyreTemperatureValueM[i] + tyreTemperatureValueO[i]) / 3) + 0.75 * tyreTemperatureValue[i]
 
-        labels = [tyreLabelFL, tyreLabelFR, tyreLabelRL, tyreLabelRR]
-        for i, label in enumerate(labels):
+        for i, label in enumerate(tyreLabels):
             ac.setText(label, "{:.0f}".format(tyrePracticalTemperatureValue[i]))
             if minimumOptimalTemperature and maximumOptimalTemperature:
                 if int(round(tyrePracticalTemperatureValue[i])) >= minimumOptimalTemperature and int(round(tyrePracticalTemperatureValue[i])) <= maximumOptimalTemperature:
-                    ac.setFontColor(label, 0.17, 1, 0, 1)
+                    ac.setBackgroundColor(label, 0.17, 1, 0)
                 elif int(round(tyrePracticalTemperatureValue[i])) < minimumOptimalTemperature:
                     idealTemperatureDifference = min(temperatureTransitionRange, minimumOptimalTemperature - tyrePracticalTemperatureValue[i]) / temperatureTransitionRange
-                    ac.setFontColor(label, max(0, 0.17 - idealTemperatureDifference / 5.88), max(0.51, 1 - idealTemperatureDifference / 1.96), min(1, 0 + idealTemperatureDifference), 1)
+                    ac.setBackgroundColor(label, max(0, 0.17 - idealTemperatureDifference / 5.88), max(0.51, 1 - idealTemperatureDifference / 1.96), min(1, 0 + idealTemperatureDifference))
                 elif int(round(tyrePracticalTemperatureValue[i])) > maximumOptimalTemperature:
                     idealTemperatureDifference = min(temperatureTransitionRange, tyrePracticalTemperatureValue[i] - maximumOptimalTemperature) / temperatureTransitionRange
-                    ac.setFontColor(label, min(1, 0.17 + idealTemperatureDifference / 0.83), max(0.17, 1 - idealTemperatureDifference / 0.83), 0, 1)
+                    ac.setBackgroundColor(label, min(1, 0.17 + idealTemperatureDifference / 0.83), max(0.17, 1 - idealTemperatureDifference / 0.83), 0)
             else:
-                ac.setFontColor(label, 0.86, 0.86, 0.86, 1)
+                ac.setBackgroundOpacity(label, 0)
+            ac.setBackgroundOpacity(label, 1) # background colors start to hyde for some reason so this is needed
+        
+        for i, label in enumerate(tyrePressureLabels):
+            if idealPressureFront and idealPressureRear:
+                if i < 2: # front
+                    ac.setText(label, "{:+.1f}".format(tyrePressureValue[i] - idealPressureFront))
+                else: # rear
+                    ac.setText(label, "{:+.1f}".format(tyrePressureValue[i] - idealPressureRear))
+            else:
+                ac.setText(label, "{:.0f}".format(tyrePressureValue[i]))
+        
+    # =================================================================================================================
+    #                                     CALCULATE AT LAP ENDING OR LAP START
+    # =================================================================================================================
 
     #Display/calculate on lap start
     if currentLapValue > 500 and currentLapValue < 1000:
@@ -620,34 +581,10 @@ def acUpdate(deltaT):
             relevantLapsNumber += 1
             fuelSpentValue += fuelStartValue - fuelAmountValue
             fuelPerLapValue = fuelSpentValue / relevantLapsNumber
-        
-        
-# Save best lap
-def acShutdown():
-    pass
-    # global filePersonalBest, personalBestLapValue
-    # writeFile(filePersonalBest, personalBestLapValue, PERSONALBESTDIR)
 
 
-#Write file function
-def writeFile(file, list, dir):
-	if not os.path.exists(dir):
-		os.makedirs(dir)
-
-	f = open(file, "wb")
-	pickle.dump(list, f)
-	f.close()
-
-#Load file function
-def loadFile(file):
-    try:
-        if os.path.exists(file):
-            f = open(file, "rb")
-            var = pickle.load(f)
-            f.close()
-            return var
-    except:
-        ac.console("Error loading " + str(file))		
+# END OF AC_UPDATE
+# ========================================================================================
 
 class drs:
     def __init__(self):
@@ -695,7 +632,7 @@ def getTrackLength():
         ac.log(APP_NAME + ": Error in getTrackLength: %s" % e)
         return 0
 
-def announcePenalty(lap, driver_name, detail):
+def announcePenalty(driver_name, lap, detail):
     try:
         ac.sendChatMessage(APP_NAME + ": %s was given a penalty, Lap: %d: %s" % (driver_name, lap, detail))
     except Exception as e:
