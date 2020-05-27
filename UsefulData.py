@@ -21,10 +21,7 @@ APP_NAME = "UsefulData"
 # FOLDER PATHS
 COMPOUNDSPATH = "apps/python/%s/compounds/" % APP_NAME
 
-# ERS MODES TEXT
-ERS_MODES = ['Charging', 'Low', 'High', 'Overtake', 'Speed', 'Hotlap']
-# ERS COLORS [green to red gradient]
-ERS_COLORS = [(.47,1.,.2), (.73,1.,.2), (1,1,.2), (1.,.7,.1), (1.,.33,0), (1.,.0,.0)]
+# RULES
 DRS_GAP = 1.0
 DRS_STARTS_ON_LAP = 1
 
@@ -34,8 +31,21 @@ DRS_BAD = (1.,.0,.0, 1)
 DRS_AVAILABLE = (1., 1., 0.1, 1)
 DRS_POSSIBLE = (0.86, 0.86, 0.86, 1)
 
+# ERS MODES TEXT
+ERS_MODES = ['Charging', 'Low', 'High', 'Overtake', 'Speed', 'Hotlap']
+# ERS COLORS [green to red gradient]
+ERS_COLORS = [(.47,1.,.2), (.73,1.,.2), (1,1,.2), (1.,.7,.1), (1.,.33,0), (1.,.0,.0)]
+
 audio = ('apps/python/%s/beep.wav' % APP_NAME)
 sound_player = SoundPlayer(audio)
+
+# TEXTURES
+DRS_GOOD_TEXTURE = "apps/python/%s/ui/drs_good.png" % APP_NAME
+DRS_BAD_TEXTURE = "apps/python/%s/ui/drs_bad.png" % APP_NAME
+DRS_AVAILABLE_TEXTURE = "apps/python/%s/ui/drs_available.png" % APP_NAME
+DRS_POSSIBLE_TEXTURE = "apps/python/%s/ui/drs_possible.png" % APP_NAME
+
+ERS_MODES_TEXTURE = ["apps/python/%s/ui/ers_mode_%d.png" % (APP_NAME, i) for i in range(6)]
 
 #timers
 timer0 = 0
@@ -124,23 +134,23 @@ def acMain(ac_version):
     ac.setTitle(appWindow, "")
     ac.drawBorder(appWindow, 0)
     ac.setIconPosition(appWindow, 0, -10000)
-    ac.setSize(appWindow, 300, 60)
+    ac.setSize(appWindow, 300, 70)
     ac.setBackgroundOpacity(appWindow, 0.2)
 
     # =================================================================================================================
     #                                             TYRE LABELS
     # =================================================================================================================
 
-    tyreLabelFL = ac.addLabel(appWindow, "TFL")
-    tyreLabelFR = ac.addLabel(appWindow, "TFR")
-    tyreLabelRL = ac.addLabel(appWindow, "TRL")
-    tyreLabelRR = ac.addLabel(appWindow, "TRR")
+    tyreLabelFL = ac.addLabel(appWindow, "")
+    tyreLabelFR = ac.addLabel(appWindow, "")
+    tyreLabelRL = ac.addLabel(appWindow, "")
+    tyreLabelRR = ac.addLabel(appWindow, "")
     tyreLabels = [tyreLabelFL, tyreLabelFR, tyreLabelRL, tyreLabelRR]
     for label in tyreLabels:
         ac.setFontSize(label, 15)
         ac.setFontColor(label, 0, 0, 0, 1)
         ac.setFontAlignment(label, "center")
-        ac.setSize(label, 23, 25)
+        ac.setSize(label, 15, 23)
 
     tyrePressureLabelFL = ac.addLabel(appWindow, "PFL")
     tyrePressureLabelFR = ac.addLabel(appWindow, "PFR")
@@ -151,10 +161,10 @@ def acMain(ac_version):
         ac.setFontSize(label, 15)
         ac.setFontColor(label, 0.86, 0.86, 0.86, 1)
 
-    ac.setFontAlignment(tyrePressureLabels[0], "left")
-    ac.setFontAlignment(tyrePressureLabels[1], "right")
-    ac.setFontAlignment(tyrePressureLabels[2], "left")
-    ac.setFontAlignment(tyrePressureLabels[3], "right")
+    ac.setFontAlignment(tyrePressureLabels[0], "right")
+    ac.setFontAlignment(tyrePressureLabels[1], "left")
+    ac.setFontAlignment(tyrePressureLabels[2], "right")
+    ac.setFontAlignment(tyrePressureLabels[3], "left")
 
     #position all the labels
     tlpx = 60
@@ -537,7 +547,7 @@ def acUpdate(deltaT):
             tyrePracticalTemperatureValue[i] = 0.25 * ((tyreTemperatureValueI[i] + tyreTemperatureValueM[i] + tyreTemperatureValueO[i]) / 3) + 0.75 * tyreTemperatureValue[i]
 
         for i, label in enumerate(tyreLabels):
-            ac.setText(label, "{:.0f}".format(tyrePracticalTemperatureValue[i]))
+            # ac.setText(label, "{:.0f}".format(tyrePracticalTemperatureValue[i]))
             if minimumOptimalTemperature and maximumOptimalTemperature:
                 if int(round(tyrePracticalTemperatureValue[i])) >= minimumOptimalTemperature and int(round(tyrePracticalTemperatureValue[i])) <= maximumOptimalTemperature:
                     ac.setBackgroundColor(label, 0.17, 1, 0)
