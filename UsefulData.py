@@ -17,6 +17,7 @@ from sound_player import SoundPlayer
 
 # TODO Fix appname
 APP_NAME = "UsefulData"
+FONT_NAME = "Orbitron"
 
 # FOLDER PATHS
 COMPOUNDSPATH = "apps/python/%s/compounds/" % APP_NAME
@@ -34,7 +35,7 @@ DRS_POSSIBLE = (0.86, 0.86, 0.86, 1)
 # ERS MODES TEXT
 ERS_MODES = ['Charging', 'Low', 'High', 'Overtake', 'Speed', 'Hotlap']
 # ERS COLORS [green to red gradient]
-ERS_COLORS = [(.47,1.,.2), (.73,1.,.2), (1,1,.2), (1.,.7,.1), (1.,.33,0), (1.,.0,.0)]
+ERS_COLORS = [(.47,1.,.2, 1), (.73,1.,.2, 1), (1,1,.2, 1), (1.,.7,.1, 1), (1.,.33,0, 1), (1.,.0,.0, 1)]
 
 audio = ('apps/python/%s/beep.wav' % APP_NAME)
 sound_player = SoundPlayer(audio)
@@ -128,7 +129,7 @@ def acMain(ac_version):
     modCompounds = configparser.ConfigParser()
     modCompounds.read(COMPOUNDSPATH + carValue + ".ini")
 
-    ac.initFont(0, "Roboto", 1, 1)
+    ac.initFont(0, FONT_NAME, 0, 0)
 
     appWindow = ac.newApp(APP_NAME)
     ac.setTitle(appWindow, "")
@@ -160,6 +161,7 @@ def acMain(ac_version):
     for label in tyrePressureLabels:
         ac.setFontSize(label, 15)
         ac.setFontColor(label, 0.86, 0.86, 0.86, 1)
+        ac.setCustomFont(label, FONT_NAME, 0, 0)
 
     ac.setFontAlignment(tyrePressureLabels[0], "right")
     ac.setFontAlignment(tyrePressureLabels[1], "left")
@@ -167,27 +169,27 @@ def acMain(ac_version):
     ac.setFontAlignment(tyrePressureLabels[3], "left")
 
     #position all the labels
-    tlpx = 60
-    tlpy = 0
+    tlpx = 200
+    tlpy = 10
 
-    ac.setPosition(tyreLabels[0], tlpx + 30, tlpy + 0)
-    ac.setPosition(tyreLabels[1], tlpx + 57, tlpy + 0)
-    ac.setPosition(tyreLabels[2], tlpx + 30, tlpy + 28)
-    ac.setPosition(tyreLabels[3], tlpx + 57, tlpy + 28)
+    ac.setPosition(tyreLabels[0], tlpx + 5, tlpy + 0)
+    ac.setPosition(tyreLabels[1], tlpx + 25, tlpy + 0)
+    ac.setPosition(tyreLabels[2], tlpx + 5, tlpy + 28)
+    ac.setPosition(tyreLabels[3], tlpx + 25, tlpy + 28)
 
-    ac.setPosition(tyrePressureLabels[0], tlpx, tlpy + 0)
-    ac.setPosition(tyrePressureLabels[1], tlpx + 120, tlpy + 0)
-    ac.setPosition(tyrePressureLabels[2], tlpx, tlpy + 28)
-    ac.setPosition(tyrePressureLabels[3], tlpx + 120, tlpy + 28)
+    ac.setPosition(tyrePressureLabels[0], tlpx, tlpy + 2)
+    ac.setPosition(tyrePressureLabels[1], tlpx + 43, tlpy + 2)
+    ac.setPosition(tyrePressureLabels[2], tlpx, tlpy + 30)
+    ac.setPosition(tyrePressureLabels[3], tlpx + 43, tlpy + 30)
 
     # =================================================================================================================
     #                                      ERS MODES LABELS
     # =================================================================================================================
 
-    ersModeLabel = ac.addLabel(appWindow, "🗲 0 0")
+    ersModeLabel = ac.addLabel(appWindow, "🗲0")
     ac.setPosition(ersModeLabel, 10, 20)
     ac.setFontSize(ersModeLabel, 18)
-    ac.setCustomFont(ersModeLabel, "Roboto", 0, 0)
+    ac.setCustomFont(ersModeLabel, FONT_NAME, 0, 0)
     ac.setFontColor(ersModeLabel, 1.0, 1.0, 0.2, 1)
     ac.setFontAlignment(ersModeLabel, "left")
 
@@ -198,7 +200,7 @@ def acMain(ac_version):
     fuelLabel = ac.addLabel(appWindow, "💧 --.- Laps")
     ac.setPosition(fuelLabel, 10, 0)
     ac.setFontSize(fuelLabel, 18)
-    ac.setCustomFont(fuelLabel, "Roboto", 0, 0)
+    ac.setCustomFont(fuelLabel, FONT_NAME, 0, 0)
     ac.setFontColor(fuelLabel, 0.86, 0.86, 0.86, 1)
     ac.setFontAlignment(fuelLabel, "left")
 
@@ -209,14 +211,14 @@ def acMain(ac_version):
     drsLabel = ac.addLabel(appWindow, "DRS")
     ac.setPosition(drsLabel, 200, 0)
     ac.setFontSize(drsLabel, 35)
-    ac.setCustomFont(drsLabel, "Roboto", 0, 1)
+    ac.setCustomFont(drsLabel, FONT_NAME, 0, 1)
     ac.setFontColor(drsLabel, 0.86, 0.86, 0.86, 1)
     ac.setFontAlignment(drsLabel, "center")
 
     drsPenaltyLabel = ac.addLabel(appWindow, "")
     ac.setPosition(drsPenaltyLabel, 260, 0)
     ac.setFontSize(drsPenaltyLabel, 18)
-    ac.setCustomFont(drsPenaltyLabel, "Roboto", 0, 1)
+    ac.setCustomFont(drsPenaltyLabel, FONT_NAME, 0, 1)
     ac.setFontColor(drsPenaltyLabel, 0.86, 0.86, 0.86, 1)
     ac.setFontAlignment(drsPenaltyLabel, "left")
 
@@ -529,8 +531,8 @@ def acUpdate(deltaT):
 
         ersRecoveryLevel = info.physics.ersRecoveryLevel
         ersMode = info.physics.ersPowerLevel
-        ac.setText(ersModeLabel, "🗲 {} {}".format(ERS_MODES[ersMode], ersRecoveryLevel))
-        ac.setFontColor(ersModeLabel, ERS_COLORS[ersMode][0], ERS_COLORS[ersMode][1], ERS_COLORS[ersMode][2], 1)
+        ac.setText(ersModeLabel, "🗲{}".format(ersMode))
+        ac.setFontColor(ersModeLabel, *ERS_COLORS[ersMode])
         
         # =================================================================================================================
         #                                              FUEL LABEL
