@@ -13,7 +13,7 @@ Tyre temperature and pressured based on [Sidekick](https://www.racedepartment.co
 
 Get latest release from [here](https://github.com/3ximus/formula-moacs-app/releases)
 
-[**Install through Content Manager**](acmanager://install?url=https://github.com/3ximus/formula-moacs-app/releases/download/1.0/MoacsApp.rar)
+**Install through Content Manager** >>> acmanager://install?url=https://github.com/3ximus/formula-moacs-app/releases/download/1.0/MoacsApp.rar
 
 ### Screenshots
 
