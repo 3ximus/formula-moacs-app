@@ -241,6 +241,7 @@ def acMain(ac_version):
     ac.setCustomFont(drsPenaltyLabel, FONT_NAME, 0, 1)
     ac.setFontColor(drsPenaltyLabel, 0.86, 0.86, 0.86, 1)
     ac.setFontAlignment(drsPenaltyLabel, "center")
+    ac.setVisible(drsPenaltyLabel, 0)
 
 
     return APP_NAME
@@ -475,7 +476,7 @@ def acUpdate(deltaT):
                     ac.setBackgroundTexture(drsLabel, DRS_BAD_TEXTURE)
                     ac.setVisible(drsLabel, 1)
                     totalPenalty += curTime - lastTime
-                    if totalPenalty > 0:
+                    if totalPenalty > 1:
                         ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
                         ac.setVisible(drsPenaltyLabel, 1)
                         ac.setVisible(drsPenaltyBackgroundLabel, 1)
@@ -521,7 +522,7 @@ def acUpdate(deltaT):
                 if drsAvailableValue and drsValid and not drsEnabledValue and totalPenalty > 0:
                     totalPenalty -= curTime - lastTime
                     ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
-                    if totalPenalty < 0:
+                    if totalPenalty < 1:
                         ac.setVisible(drsPenaltyLabel, 0)
                         ac.setVisible(drsPenaltyBackgroundLabel, 0)
 
