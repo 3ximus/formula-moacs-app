@@ -9,6 +9,12 @@ DRS rules based on [ACRL DRS](https://www.racedepartment.com/downloads/acrl-drs.
 
 Tyre temperature and pressured based on [Sidekick](https://www.racedepartment.com/downloads/sidekick.11007/)
 
+### Install
+
+Get latest release from [here](https://github.com/3ximus/formula-moacs-app/releases)
+
+[**Install through Content Manager**](acmanager://install?url=https://github.com/3ximus/formula-moacs-app/releases/download/1.0/MoacsApp.rar)
+
 ### Screenshots
 
 
