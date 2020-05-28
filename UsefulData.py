@@ -45,6 +45,7 @@ DRS_GOOD_TEXTURE = "apps/python/%s/ui/drs_good.png" % APP_NAME
 DRS_BAD_TEXTURE = "apps/python/%s/ui/drs_bad.png" % APP_NAME
 DRS_AVAILABLE_TEXTURE = "apps/python/%s/ui/drs_available.png" % APP_NAME
 DRS_POSSIBLE_TEXTURE = "apps/python/%s/ui/drs_possible.png" % APP_NAME
+DRS_PENALTY_TEXTURE = "apps/python/%s/ui/drs_penalty_background.png" % APP_NAME
 
 ERS_MODES_TEXTURE = ["apps/python/%s/ui/ers_mode_%d.png" % (APP_NAME, i) for i in range(6)]
 
@@ -101,14 +102,14 @@ temperatureTransitionRange = 20.0
 # labels and ui data collected
 tyreLabels = [None] * 4
 tyrePressureLabels = [None] * 4
-drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel = None, None, None, None, None, None
+drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel, drsPenaltyBackgroundLabel = None, None, None, None, None, None, None
 compounds, modCompounds  = None, None
 carValue, trackConfigValue, trackValue = None, None, None
 # filePersonalBest = None
 
 def acMain(ac_version):
     global tyreLabels, tyrePressureLabels
-    global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel
+    global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel, drsPenaltyBackgroundLabel
 
     global drsData, totalDrivers, trackLength
 
@@ -135,7 +136,7 @@ def acMain(ac_version):
     ac.setTitle(appWindow, "")
     ac.drawBorder(appWindow, 0)
     ac.setIconPosition(appWindow, 0, -10000)
-    ac.setSize(appWindow, 300, 70)
+    ac.setSize(appWindow, 280, 70)
     ac.setBackgroundOpacity(appWindow, 0.2)
 
     # =================================================================================================================
@@ -169,7 +170,7 @@ def acMain(ac_version):
     ac.setFontAlignment(tyrePressureLabels[3], "left")
 
     #position all the labels
-    tlpx = 200
+    tlpx = 180
     tlpy = 10
 
     ac.setPosition(tyreLabels[0], tlpx + 5, tlpy + 0)
@@ -186,8 +187,8 @@ def acMain(ac_version):
     #                                      ERS MODES LABELS
     # =================================================================================================================
 
-    elpx = 10
-    elpy = 20
+    elpx = 15
+    elpy = 10
 
     ersModeLabel = ac.addLabel(appWindow, "🗲0")
     ac.setPosition(ersModeLabel, elpx+50, elpy)
@@ -196,7 +197,7 @@ def acMain(ac_version):
     ac.setFontColor(ersModeLabel, 1.0, 1.0, 0.2, 1)
     ac.setFontAlignment(ersModeLabel, "left")
 
-    ersRecoveryLabel = ac.addLabel(appWindow, "⇈0")
+    ersRecoveryLabel = ac.addLabel(appWindow, "")
     ac.setPosition(ersRecoveryLabel, elpx+85, elpy)
     ac.setFontSize(ersRecoveryLabel, 18)
     ac.setCustomFont(ersRecoveryLabel, FONT_NAME, 0, 0)
@@ -215,7 +216,7 @@ def acMain(ac_version):
     # =================================================================================================================
 
     fuelLabel = ac.addLabel(appWindow, "💧 --.- Laps")
-    ac.setPosition(fuelLabel, 10, 0)
+    ac.setPosition(fuelLabel, 15, 36)
     ac.setFontSize(fuelLabel, 18)
     ac.setCustomFont(fuelLabel, FONT_NAME, 0, 0)
     ac.setFontColor(fuelLabel, 0.86, 0.86, 0.86, 1)
@@ -225,26 +226,30 @@ def acMain(ac_version):
     #                                             DRS LABELS
     # =================================================================================================================
 
-    drsLabel = ac.addLabel(appWindow, "DRS")
-    ac.setPosition(drsLabel, 200, 0)
-    ac.setFontSize(drsLabel, 35)
-    ac.setCustomFont(drsLabel, FONT_NAME, 0, 1)
-    ac.setFontColor(drsLabel, 0.86, 0.86, 0.86, 1)
-    ac.setFontAlignment(drsLabel, "center")
+    drsLabel = ac.addLabel(appWindow, "")
+    ac.setPosition(drsLabel, -70, 0)
+    ac.setSize(drsLabel, 70, 70)
+
+    drsPenaltyBackgroundLabel = ac.addLabel(appWindow, "")
+    ac.setPosition(drsPenaltyBackgroundLabel, 0, 70)
+    ac.setSize(drsPenaltyBackgroundLabel, 280, 25)
+    ac.setBackgroundTexture(drsPenaltyBackgroundLabel, DRS_PENALTY_TEXTURE)
+    ac.setVisible(drsPenaltyBackgroundLabel, 0)
 
     drsPenaltyLabel = ac.addLabel(appWindow, "")
-    ac.setPosition(drsPenaltyLabel, 260, 0)
+    ac.setPosition(drsPenaltyLabel, 150, 70)
     ac.setFontSize(drsPenaltyLabel, 18)
     ac.setCustomFont(drsPenaltyLabel, FONT_NAME, 0, 1)
     ac.setFontColor(drsPenaltyLabel, 0.86, 0.86, 0.86, 1)
-    ac.setFontAlignment(drsPenaltyLabel, "left")
+    ac.setFontAlignment(drsPenaltyLabel, "center")
+
 
     return APP_NAME
 
 def acUpdate(deltaT):
     global timer0, timer1
     global tyreLabels, tyrePressureLabels
-    global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel
+    global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel, drsPenaltyBackgroundLabel
     global carValue, trackConfigValue, trackValue
 
     global currentLapValue, lapValue, previousLapValue, carWasInPit
@@ -338,10 +343,10 @@ def acUpdate(deltaT):
         
         if info.graphics.session != 2:
             if drsEnabledValue:
-                ac.setFontColor(drsLabel, 0.25, 1.00, 0.10, 1)
+                ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
                 ac.setVisible(drsLabel, 1)
             elif drsAvailableValue:
-                ac.setFontColor(drsLabel, 1.00, 1.00, 0.10, 1)
+                ac.setBackgroundTexture(drsLabel, DRS_AVAILABLE_TEXTURE)
                 ac.setVisible(drsLabel, 1)
 
                 if not soundPlaying: # use this variable to control drs beep at begining of drs
@@ -457,7 +462,7 @@ def acUpdate(deltaT):
                         if car["lastDRS"] == myCar["lastDRS"] and myCar["DRStime"] - car["DRStime"] <= DRS_GAP:
                             drsValid = True
                             ac.console("And I can use it:  car %d, gap %f. Me: %f other %f" % (index, (myCar["DRStime"] - car["DRStime"]), myCar["DRStime"], car["DRStime"]))
-                            ac.setFontColor(drsLabel, *DRS_POSSIBLE)
+                            ac.setBackgroundTexture(drsLabel, DRS_POSSIBLE_TEXTURE)
                             ac.setVisible(drsLabel, 1)
                             break
 
@@ -468,12 +473,13 @@ def acUpdate(deltaT):
                 # Check DRS used correctly and penalty not already awarded for this zone
                 if info.physics.drs > 0 and drsValid is False:
 
-                    ac.setFontColor(drsLabel, *DRS_BAD)
+                    ac.setBackgroundTexture(drsLabel, DRS_BAD_TEXTURE)
                     ac.setVisible(drsLabel, 1)
                     totalPenalty += curTime - lastTime
                     if totalPenalty > 0:
                         ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
                         ac.setVisible(drsPenaltyLabel, 1)
+                        ac.setVisible(drsPenaltyBackgroundLabel, 1)
 
                     if not drsPenAwarded:
                         drsPenAwarded = True
@@ -518,17 +524,18 @@ def acUpdate(deltaT):
                     ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
                     if totalPenalty < 0:
                         ac.setVisible(drsPenaltyLabel, 0)
+                        ac.setVisible(drsPenaltyBackgroundLabel, 0)
 
                 if not drsEnabledValue and drsAvailableValue:
                     if drsValid:
-                        ac.setFontColor(drsLabel, *DRS_AVAILABLE)
+                        ac.setBackgroundTexture(drsLabel, DRS_AVAILABLE_TEXTURE)
                     else: # turn of the sound
                         ac.setVisible(drsLabel, 0)
                         sound_player.stop()
                         soundPlaying = False
 
                 if drsEnabledValue and drsValid:
-                    ac.setFontColor(drsLabel, *DRS_GOOD)
+                    ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
 
 
             elif info.physics.drs > 0:
