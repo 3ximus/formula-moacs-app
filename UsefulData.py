@@ -101,14 +101,14 @@ temperatureTransitionRange = 20.0
 # labels and ui data collected
 tyreLabels = [None] * 4
 tyrePressureLabels = [None] * 4
-drsLabel, ersModeLabel, fuelLabel, drsPenaltyLabel = None, None, None, None
+drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel = None, None, None, None, None, None
 compounds, modCompounds  = None, None
 carValue, trackConfigValue, trackValue = None, None, None
 # filePersonalBest = None
 
 def acMain(ac_version):
     global tyreLabels, tyrePressureLabels
-    global drsLabel, ersModeLabel, fuelLabel, drsPenaltyLabel
+    global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel
 
     global drsData, totalDrivers, trackLength
 
@@ -186,12 +186,29 @@ def acMain(ac_version):
     #                                      ERS MODES LABELS
     # =================================================================================================================
 
+    elpx = 10
+    elpy = 20
+
     ersModeLabel = ac.addLabel(appWindow, "🗲0")
-    ac.setPosition(ersModeLabel, 10, 20)
+    ac.setPosition(ersModeLabel, elpx+50, elpy)
     ac.setFontSize(ersModeLabel, 18)
     ac.setCustomFont(ersModeLabel, FONT_NAME, 0, 0)
     ac.setFontColor(ersModeLabel, 1.0, 1.0, 0.2, 1)
     ac.setFontAlignment(ersModeLabel, "left")
+
+    ersRecoveryLabel = ac.addLabel(appWindow, "⇈0")
+    ac.setPosition(ersRecoveryLabel, elpx+85, elpy)
+    ac.setFontSize(ersRecoveryLabel, 18)
+    ac.setCustomFont(ersRecoveryLabel, FONT_NAME, 0, 0)
+    ac.setFontColor(ersRecoveryLabel, 1.0, 1.0, 0.2, 1)
+    ac.setFontAlignment(ersRecoveryLabel, "left")
+
+    ersLabel = ac.addLabel(appWindow, "ERS:")
+    ac.setPosition(ersLabel, elpx, elpy)
+    ac.setFontSize(ersLabel, 18)
+    ac.setCustomFont(ersLabel, FONT_NAME, 0, 0)
+    ac.setFontColor(ersLabel, 1.0, 1.0, 0.2, 1)
+    ac.setFontAlignment(ersLabel, "left")
 
     # =================================================================================================================
     #                                      FUEL LABEL
@@ -227,7 +244,7 @@ def acMain(ac_version):
 def acUpdate(deltaT):
     global timer0, timer1
     global tyreLabels, tyrePressureLabels
-    global drsLabel, ersModeLabel, fuelLabel, drsPenaltyLabel
+    global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel
     global carValue, trackConfigValue, trackValue
 
     global currentLapValue, lapValue, previousLapValue, carWasInPit
@@ -532,7 +549,10 @@ def acUpdate(deltaT):
         ersRecoveryLevel = info.physics.ersRecoveryLevel
         ersMode = info.physics.ersPowerLevel
         ac.setText(ersModeLabel, "🗲{}".format(ersMode))
+        ac.setText(ersRecoveryLabel, "↺{}".format(ersRecoveryLevel))
         ac.setFontColor(ersModeLabel, *ERS_COLORS[ersMode])
+        ac.setFontColor(ersLabel, *ERS_COLORS[ersMode])
+        ac.setFontColor(ersRecoveryLabel, *ERS_COLORS[ersMode])
         
         # =================================================================================================================
         #                                              FUEL LABEL
