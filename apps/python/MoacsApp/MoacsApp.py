@@ -15,8 +15,7 @@ from ctypes import wintypes
 from sim_info_lib.sim_info import info
 from sound_player import SoundPlayer
 
-# TODO Fix appname
-APP_NAME = "UsefulData"
+APP_NAME = "MoacsApp"
 FONT_NAME = "Orbitron"
 
 # FOLDER PATHS
