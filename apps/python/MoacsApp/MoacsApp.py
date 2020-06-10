@@ -228,6 +228,7 @@ def acMain(ac_version):
     drsLabel = ac.addLabel(appWindow, "")
     ac.setPosition(drsLabel, -70, 0)
     ac.setSize(drsLabel, 70, 70)
+    ac.setVisible(drsLabel, 0)
 
     drsPenaltyBackgroundLabel = ac.addLabel(appWindow, "")
     ac.setPosition(drsPenaltyBackgroundLabel, 0, 70)
@@ -537,12 +538,28 @@ def acUpdate(deltaT):
                 if drsEnabledValue and drsValid:
                     ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
 
-
             elif info.physics.drs > 0:
                 #enabled DRS at start of race or through back to pit
                 if lastDRSLevel == 0:
-                    ac.console(APP_NAME + ": Illegal DRS use.")
-                    announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use, DRS opened without crossing detection line (Start or backToPit)")
+                    ac.setBackgroundTexture(drsLabel, DRS_BAD_TEXTURE)
+                    ac.setVisible(drsLabel, 1)
+                    totalPenalty += curTime - lastTime
+                    if totalPenalty > 1:
+                        ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
+                        ac.setVisible(drsPenaltyLabel, 1)
+                        ac.setVisible(drsPenaltyBackgroundLabel, 1)
+
+                    if not drsPenAwarded:
+                        drsPenAwarded = True
+                        ac.console(APP_NAME + ": Illegal DRS use.")
+                        announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use on Race Start")
+
+                    if not soundPlaying:
+                        sound_player.play(audio)
+                        soundPlaying = True
+            else:
+                # Only used at the start of the race
+                ac.setVisible(drsLabel, 0)
 
             # end of update save current values into lasts
             lastTime = curTime
