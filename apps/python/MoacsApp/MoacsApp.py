@@ -23,7 +23,7 @@ COMPOUNDSPATH = "apps/python/%s/compounds/" % APP_NAME
 
 # RULES
 DRS_GAP = 1.0
-DRS_STARTS_ON_LAP = 1
+DRS_STARTS_ON_LAP = 2
 
 #DRS COLORS
 DRS_GOOD = (0.25, 1.00, 0.10, 1)
@@ -341,7 +341,7 @@ def acUpdate(deltaT):
         #                                        DRS SIMPLE (not races)
         # =================================================================================================================
         
-        if info.graphics.session != 2:
+        if info.graphics.session != 2 and str(ac.getCarName(0)).startswith('rss_formula_hybrid'):
             if drsEnabledValue:
                 ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
                 ac.setVisible(drsLabel, 1)
@@ -364,7 +364,7 @@ def acUpdate(deltaT):
         #                                          DRS DATA COLLECTION
         # =================================================================================================================
         
-        if info.graphics.session == 2:
+        if info.graphics.session == 2 and str(ac.getCarName(0)).startswith('rss_formula_hybrid'):
 
             curTime = time.time()
             clientCrossedDRS = -1 # index of DRS zone crossed during this update
