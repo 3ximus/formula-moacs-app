@@ -61,7 +61,7 @@ maximumOptimalTemperature = 0
 idealPressureFront = 0
 idealPressureRear = 0
 tyreCompoundValue = 0
-tyreWearValue = [0] * 4
+# tyreWearValue = [0] * 4
 tyreTemperatureValue = [0] * 4
 tyreTemperatureValueI = [0] * 4
 tyreTemperatureValueM = [0] * 4
@@ -258,10 +258,8 @@ def acUpdate(deltaT):
     global totalDrivers, trackLength, lastTime, lastList
     global drsValid, lastDRSLevel, inDrsZone, drsPenAwarded, totalPenalty, soundPlaying
 
-    # global currentLapValueMinutes, currentLapValueSeconds, lastLapValue, lastLapValueMinutes, lastLapValueSeconds, bestLapValue, previousBestLapValue, bestLapValueMinutes, bestLapValueSeconds, personalBestLapValue, previousPersonalBestLapValue, personalBestLapValueMinutes, personalBestLapValueSeconds, lapValidityValue, lapWasInvalid
-
     global tyreCompoundShort, tyreCompoundCleaned, previousTyreCompoundValue, minimumOptimalTemperature, maximumOptimalTemperature, idealPressureFront, idealPressureRear
-    global tyreWearValue, tyreTemperatureValue, tyreTemperatureValueI, tyreTemperatureValueM, tyreTemperatureValueO, tyrePressureValue, tyreCompoundValue
+    global tyreTemperatureValue, tyreTemperatureValueI, tyreTemperatureValueM, tyreTemperatureValueO, tyrePressureValue, tyreCompoundValue
     global temperatureTransitionRange, tyrePracticalTemperatureValue
     global fuelAmountValue, fuelStartValue, relevantLapsNumber, fuelSpentValue, fuelPerLapValue
 
@@ -277,17 +275,13 @@ def acUpdate(deltaT):
         # =================================================================================================================
         #                                    GET A BUNCH OF INFO
         # =================================================================================================================
-        statusValue = info.graphics.status
-
         tyreCompoundValue = info.graphics.tyreCompound
-        tyreWearValue = info.physics.tyreWear
         tyreTemperatureValue = info.physics.tyreCoreTemperature
         tyreTemperatureValueI = info.physics.tyreTempI
         tyreTemperatureValueM = info.physics.tyreTempM
         tyreTemperatureValueO = info.physics.tyreTempO
         tyrePressureValue = info.physics.wheelsPressure
 
-        totalLapsValue = info.graphics.numberOfLaps
         fuelAmountValue = info.physics.fuel
 
         if ac.isCarInPitline(0):
@@ -307,7 +301,7 @@ def acUpdate(deltaT):
                     idealPressureRear = int(compounds.get(carValue + "_" + tyreCompoundCleaned, "IDEAL_PRESSURE_R"))
                     minimumOptimalTemperature = int(compounds.get(carValue + "_" + tyreCompoundCleaned, "MIN_OPTIMAL_TEMP"))
                     maximumOptimalTemperature = int(compounds.get(carValue + "_" + tyreCompoundCleaned, "MAX_OPTIMAL_TEMP"))
-                    ac.console("Tyres: {}, {}psi/{}psi, {}°C-{}°C".format(tyreCompoundValue, idealPressureFront, idealPressureRear, minimumOptimalTemperature, maximumOptimalTemperature))
+                    # ac.console("Tyres: {}, {}psi/{}psi, {}°C-{}°C".format(tyreCompoundValue, idealPressureFront, idealPressureRear, minimumOptimalTemperature, maximumOptimalTemperature))
                 except:
                     ac.console("Error loading tyre data.")
             elif modCompounds.has_section(carValue + "_" + tyreCompoundCleaned):
@@ -316,7 +310,7 @@ def acUpdate(deltaT):
                     idealPressureRear = int(modCompounds.get(carValue + "_" + tyreCompoundCleaned, "IDEAL_PRESSURE_R"))
                     minimumOptimalTemperature = int(float(modCompounds.get(carValue + "_" + tyreCompoundCleaned, "MIN_OPTIMAL_TEMP")))
                     maximumOptimalTemperature = int(float(modCompounds.get(carValue + "_" + tyreCompoundCleaned, "MAX_OPTIMAL_TEMP")))
-                    ac.console("Tyres: {}, {}psi/{}psi, {}°C-{}°C".format(tyreCompoundValue, idealPressureFront, idealPressureRear, minimumOptimalTemperature, maximumOptimalTemperature))
+                    # ac.console("Tyres: {}, {}psi/{}psi, {}°C-{}°C".format(tyreCompoundValue, idealPressureFront, idealPressureRear, minimumOptimalTemperature, maximumOptimalTemperature))
                 except:
                     ac.console("Error loading mod tyre data.")
             else:
@@ -446,6 +440,10 @@ def acUpdate(deltaT):
         # =================================================================================================================
         #                                          DRS ALLOWANCE MANAGEMENT
         # =================================================================================================================
+
+            # Race Restart
+            if info.graphics.completedLaps == 0 and info.graphics.iCurrentTime == 0:
+                totalPenalty = 0 # reset penalty
         
             # Check if client crossed detection and within drsGap of another car
             if clientCrossedDRS != -1:
@@ -462,7 +460,7 @@ def acUpdate(deltaT):
                             continue
                         if car["lastDRS"] == myCar["lastDRS"] and myCar["DRStime"] - car["DRStime"] <= DRS_GAP:
                             drsValid = True
-                            ac.console("And I can use it:  car %d, gap %f. Me: %f other %f" % (index, (myCar["DRStime"] - car["DRStime"]), myCar["DRStime"], car["DRStime"]))
+                            # ac.console("And I can use it:  car %d, gap %f. Me: %f other %f" % (index, (myCar["DRStime"] - car["DRStime"]), myCar["DRStime"], car["DRStime"]))
                             ac.setBackgroundTexture(drsLabel, DRS_POSSIBLE_TEXTURE)
                             ac.setVisible(drsLabel, 1)
                             break
@@ -484,7 +482,7 @@ def acUpdate(deltaT):
 
                     if not drsPenAwarded:
                         drsPenAwarded = True
-                        ac.console(APP_NAME + ": Illegal DRS use.")
+                        # ac.console(APP_NAME + ": Illegal DRS use.")
                         announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use, Zone %d" % (driverList[0]["lastDRS"] + 1))
 
                     if not soundPlaying:
@@ -500,7 +498,7 @@ def acUpdate(deltaT):
                     ac.setVisible(drsLabel, 0)
                     sound_player.stop()
                     soundPlaying = False
-                    ac.console("OFF")
+                    # ac.console("OFF")
 
                 # Turn off zone when leave
                 if driverList[0]["spline"] >= zone["end"] and lastList[0]["spline"] < zone["end"]:
@@ -511,7 +509,7 @@ def acUpdate(deltaT):
                     ac.setVisible(drsLabel, 0)
                     sound_player.stop()
                     soundPlaying = False
-                    ac.console("OFF")
+                    # ac.console("OFF")
 
                 # Play a beep when crossing start line and DRS valid
                 if drsValid and driverList[0]["spline"] >= zone["start"] and lastList[0]["spline"] < zone["start"]:
@@ -551,7 +549,7 @@ def acUpdate(deltaT):
 
                     if not drsPenAwarded:
                         drsPenAwarded = True
-                        ac.console(APP_NAME + ": Illegal DRS use.")
+                        # ac.console(APP_NAME + ": Illegal DRS use.")
                         announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use on Race Start")
 
                     if not soundPlaying:
@@ -670,7 +668,7 @@ class drs:
                         "start": float(config[zone]['START']),
                         "end": float(config[zone]['END'])
                     }
-                    ac.console(APP_NAME + ': zone %s' % str(zone_info))
+                    # ac.console(APP_NAME + ': zone %s' % str(zone_info))
                     self.zones.append(zone_info)
             else:
                 ac.console(APP_NAME + ": could not find drs_zones.ini file")
