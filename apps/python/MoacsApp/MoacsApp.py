@@ -444,6 +444,7 @@ def acUpdate(deltaT):
             # Race Restart
             if info.graphics.completedLaps == 0 and info.graphics.iCurrentTime == 0:
                 totalPenalty = 0 # reset penalty
+                ac.setVisible(drsPenaltyLabel, 0)
         
             # Check if client crossed detection and within drsGap of another car
             if clientCrossedDRS != -1:
