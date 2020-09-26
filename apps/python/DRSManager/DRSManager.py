@@ -4,6 +4,7 @@ import pickle
 import os
 import configparser
 import threading
+import hashlib
 import time
 
 import ac
@@ -15,15 +16,21 @@ from ctypes import wintypes
 from sim_info_lib.sim_info import info
 from sound_player import SoundPlayer
 
-APP_NAME = "MoacsApp"
+APP_NAME = "DRSManager"
 FONT_NAME = "Orbitron"
+VERSION = '1.4'
+
+# DEFAULT SETTINGS
+DRS_ALLOWED_CARS = ['rss_formula_hybrid_2020', 'rss_formula_rss_3_v6'] # MANDATORY
+SERVERS = []
+SOUND_ON = False
 
 # FOLDER PATHS
 COMPOUNDSPATH = "apps/python/%s/compounds/" % APP_NAME
 
 # RULES
 DRS_GAP = 1.0
-DRS_STARTS_ON_LAP = 2
+DRS_STARTS_ON_LAP = 3
 
 #DRS COLORS
 DRS_GOOD = (0.25, 1.00, 0.10, 1)
@@ -107,6 +114,7 @@ carValue, trackConfigValue, trackValue = None, None, None
 # filePersonalBest = None
 
 def acMain(ac_version):
+    global DRS_ALLOWED_CARS, SOUND_ON, SERVERS
     global tyreLabels, tyrePressureLabels
     global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel, drsPenaltyBackgroundLabel
 
@@ -119,6 +127,15 @@ def acMain(ac_version):
     carValue = ac.getCarName(0)
     trackValue = ac.getTrackName(0)
     trackConfigValue = ac.getTrackConfiguration(0)
+
+    settings = configparser.ConfigParser()
+    settings.read("apps/python/%s/config.ini" % APP_NAME)
+    if settings.has_section('CARS'):
+        DRS_ALLOWED_CARS.extend([c for c in settings['CARS'] if settings['CARS'][c] == '1'])
+    if settings.has_section('SETTINGS'):
+        SOUND_ON = True if 'sound' in settings['SETTINGS'] and settings['SETTINGS']['sound'] == '1' else False
+    if settings.has_section('SERVERS'):
+        SERVERS = list(settings['SERVERS'].values())
 
     drsData = drs()
     totalDrivers = ac.getCarsCount()
@@ -244,6 +261,10 @@ def acMain(ac_version):
     ac.setFontAlignment(drsPenaltyLabel, "center")
     ac.setVisible(drsPenaltyLabel, 0)
 
+    # Announce Start
+    timer = threading.Timer(10, announceStart)
+    timer.start()
+    # announceStart()
 
     return APP_NAME
 
@@ -336,7 +357,7 @@ def acUpdate(deltaT):
         #                                        DRS SIMPLE (not races)
         # =================================================================================================================
         
-        if info.graphics.session != 2 and str(ac.getCarName(0)).startswith('rss_formula_hybrid'):
+        if info.graphics.session != 2 and ac.getCarName(0) in DRS_ALLOWED_CARS:
             if drsEnabledValue:
                 ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
                 ac.setVisible(drsLabel, 1)
@@ -344,7 +365,7 @@ def acUpdate(deltaT):
                 ac.setBackgroundTexture(drsLabel, DRS_AVAILABLE_TEXTURE)
                 ac.setVisible(drsLabel, 1)
 
-                if not soundPlaying: # use this variable to control drs beep at begining of drs
+                if not soundPlaying and SOUND_ON: # use this variable to control drs beep at begining of drs
                     sound_player.play(audio)
                     sound_player.stop()
                     # timer = threading.Timer(0.1, sound_player.stop)
@@ -359,7 +380,7 @@ def acUpdate(deltaT):
         #                                          DRS DATA COLLECTION
         # =================================================================================================================
         
-        if info.graphics.session == 2 and str(ac.getCarName(0)).startswith('rss_formula_hybrid'):
+        if info.graphics.session == 2 and ac.getCarName(0) in DRS_ALLOWED_CARS:
 
             curTime = time.time()
             clientCrossedDRS = -1 # index of DRS zone crossed during this update
@@ -486,7 +507,7 @@ def acUpdate(deltaT):
                         # ac.console(APP_NAME + ": Illegal DRS use.")
                         announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use, Zone %d" % (driverList[0]["lastDRS"] + 1))
 
-                    if not soundPlaying:
+                    if not soundPlaying and SOUND_ON:
                         sound_player.play(audio)
                         soundPlaying = True
 
@@ -513,7 +534,7 @@ def acUpdate(deltaT):
                     # ac.console("OFF")
 
                 # Play a beep when crossing start line and DRS valid
-                if drsValid and driverList[0]["spline"] >= zone["start"] and lastList[0]["spline"] < zone["start"]:
+                if SOUND_ON and drsValid and driverList[0]["spline"] >= zone["start"] and lastList[0]["spline"] < zone["start"]:
                     sound_player.play(audio)
                     #stop in 0.5s (double beep)
                     timer = threading.Timer(0.5, sound_player.stop)
@@ -538,7 +559,7 @@ def acUpdate(deltaT):
                     ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
 
             elif info.physics.drs > 0:
-                #enabled DRS at start of race or through back to pit
+                #enabled DRS at start of race
                 if lastDRSLevel == 0:
                     ac.setBackgroundTexture(drsLabel, DRS_BAD_TEXTURE)
                     ac.setVisible(drsLabel, 1)
@@ -553,7 +574,7 @@ def acUpdate(deltaT):
                         # ac.console(APP_NAME + ": Illegal DRS use.")
                         announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use on Race Start")
 
-                    if not soundPlaying:
+                    if not soundPlaying and SOUND_ON:
                         sound_player.play(audio)
                         soundPlaying = True
             else:
@@ -688,12 +709,22 @@ def getTrackLength():
         return 0
 
 def announcePenalty(driver_name, lap, detail):
-    try:
-        ac.sendChatMessage(APP_NAME + ": %s was given a penalty, Lap: %d: %s" % (driver_name, lap, detail))
-    except Exception as e:
-        ac.log(APP_NAME + ": Error in announce penalty: %s" % e)
+    if SERVERS and any(ac.getServerName().startswith(x) for x in SERVERS):
+        try:
+            ac.sendChatMessage(APP_NAME + " %s : %s penalty on Lap: %d: %s" % (VERSION, driver_name, lap, detail))
+        except Exception as e:
+            ac.log(APP_NAME + ": Error in announce penalty: %s" % e)
 
 def announceTotalPenalty(driver_name, lap):
-    global totalPenalty
-    ac.sendChatMessage(APP_NAME + ": %s ended Lap: %d with total penalty of %d seconds." % (driver_name, lap, totalPenalty))
+    if SERVERS and any(ac.getServerName().startswith(x) for x in SERVERS):
+        global totalPenalty
+        ac.sendChatMessage(APP_NAME + " %s : %s ended Lap: %d with total penalty of %d seconds." % (VERSION, driver_name, lap, totalPenalty))
+
+def announceStart():
+    if SERVERS and any(ac.getServerName().startswith(x) for x in SERVERS):
+        driver_name = ac.getDriverName(0)
+        ac.console('HERE')
+        digest = hashlib.md5(open("apps/python/%s/%s.py" % (APP_NAME, APP_NAME), 'rb').read()).hexdigest()
+        ac.console(digest)
+        ac.sendChatMessage(APP_NAME + " %s : %s --> %s" % (VERSION, driver_name, digest))
 
