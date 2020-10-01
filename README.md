@@ -1,4 +1,4 @@
-## Moacs App
+## DRS Manager App
 
 App for our assetto corsa Formula 1 championship
 
