@@ -405,7 +405,7 @@ def acUpdate(deltaT):
             # Race Restart
             if info.graphics.completedLaps == 0 and info.graphics.iCurrentTime == 0:
                 totalPenalty = 0 # reset penalty
-                set_drs_penalty()
+                set_drs_penalty(0)
 
             # DRS DETECTION Zone crossed
             if crossedDetectionZones:
@@ -415,8 +415,6 @@ def acUpdate(deltaT):
                         if any(driversList[0].drs_detection_times[z] - driver.drs_detection_times[z] <= DRS_GAP for driver in driversList[1:]):
                             set_drs_possible()
                             drsAvailableZones[z] = True
-                else:
-                    drsAvailableZones[z] = True
 
             # DRS END Zone crossed
             if crossedEndZone != -1:
@@ -447,7 +445,7 @@ def acUpdate(deltaT):
                             drsPenaltyAwardedInZone = True
                             announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use, Zone %d" % (currentDrsZone))
                         # Add penalty amount
-                        totalPenalty += curTime - lastTime
+						if abs(curTime - lastTime) < 1: totalPenalty += curTime - lastTime
                         set_drs_penalty(totalPenalty)
                     else:
                         set_drs_hidden()
