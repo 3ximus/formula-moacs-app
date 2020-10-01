@@ -10,6 +10,14 @@ import time
 import ac
 import acsys
 
+import platform
+if platform.architecture()[0] == '64bit':
+    sysdir=os.path.dirname(__file__)+'/stdlib64'
+else:
+    sysdir=os.path.dirname(__file__)+'/stdlib'
+sys.path.insert(0, sysdir)
+os.environ['PATH'] = os.environ['PATH'] + ";."
+
 import ctypes
 from ctypes import wintypes
 
@@ -18,10 +26,10 @@ from sound_player import SoundPlayer
 
 APP_NAME = "DRSManager"
 FONT_NAME = "Orbitron"
-VERSION = '1.4'
+VERSION = '1.5'
 
 # DEFAULT SETTINGS
-DRS_ALLOWED_CARS = ['rss_formula_hybrid_2020', 'rss_formula_rss_3_v6'] # MANDATORY
+DRS_ALLOWED_CARS = ['rss_formula_hybrid_2020', 'rss_formula_rss_3_v6', 'af1_f3'] # MANDATORY
 SERVERS = []
 SOUND_ON = False
 
@@ -90,17 +98,15 @@ previousLapValue = 0
 lapValue = 0
 
 #drs stuff
-drsData = None      # Definitions of DRS zones.
-lastList = []  # list of driver data from previous update
+drsZones = None      # Definitions of DRS zones.
+driversList = []
 totalDrivers = 0
-trackLength = 0
-lastTime = 0
-lastDRSLevel = 0
-drsValid = False
-inDrsZone = False
-drsPenAwarded = False
+drsAvailableZones = []
+currentDrsZone = -1
+drsPenaltyAwardedInZone = False
 totalPenalty = 0
 soundPlaying = False
+lastTime = 0
 
 #other variables
 temperatureTransitionRange = 20.0
@@ -118,7 +124,7 @@ def acMain(ac_version):
     global tyreLabels, tyrePressureLabels
     global drsLabel, ersLabel, ersModeLabel, ersRecoveryLabel, fuelLabel, drsPenaltyLabel, drsPenaltyBackgroundLabel
 
-    global drsData, totalDrivers, trackLength
+    global drsZones, totalDrivers, trackLength, drsAvailableZones, driversList
 
     global carValue, trackConfigValue, trackValue
 
@@ -137,9 +143,12 @@ def acMain(ac_version):
     if settings.has_section('SERVERS'):
         SERVERS = list(settings['SERVERS'].values())
 
-    drsData = drs()
+    drsZones = loadDRSZones()
     totalDrivers = ac.getCarsCount()
     trackLength = getTrackLength()
+
+    driversList = [Driver(i, len(drsZones)) for i in range(totalDrivers)]
+    drsAvailableZones = [False] * len(drsZones)
 
     compounds = configparser.ConfigParser()
     compounds.read(COMPOUNDSPATH + "compounds.ini")
@@ -264,7 +273,6 @@ def acMain(ac_version):
     # Announce Start
     timer = threading.Timer(10, announceStart)
     timer.start()
-    # announceStart()
 
     return APP_NAME
 
@@ -275,9 +283,8 @@ def acUpdate(deltaT):
     global carValue, trackConfigValue, trackValue
 
     global currentLapValue, lapValue, previousLapValue, carWasInPit
-    
-    global totalDrivers, trackLength, lastTime, lastList
-    global drsValid, lastDRSLevel, inDrsZone, drsPenAwarded, totalPenalty, soundPlaying
+
+    global totalDrivers, trackLength, driversList, totalPenalty, soundPlaying, drsAvailableZones, currentDrsZone, drsPenaltyAwardedInZone, lastTime
 
     global tyreCompoundShort, tyreCompoundCleaned, previousTyreCompoundValue, minimumOptimalTemperature, maximumOptimalTemperature, idealPressureFront, idealPressureRear
     global tyreTemperatureValue, tyreTemperatureValueI, tyreTemperatureValueM, tyreTemperatureValueO, tyrePressureValue, tyreCompoundValue
@@ -288,7 +295,7 @@ def acUpdate(deltaT):
 
     timer0 += deltaT
     timer1 += deltaT
-        
+
     # Once per second
     if timer0 > 1:
         timer0 = 0
@@ -315,14 +322,13 @@ def acUpdate(deltaT):
             previousTyreCompoundValue = tyreCompoundValue
             tyreCompoundShort = tyreCompoundValue[tyreCompoundValue.find("(")+1:tyreCompoundValue.find(")")]
             tyreCompoundCleaned = re.sub('\_+$', '', re.sub(r'[^\w]+', '_', tyreCompoundValue)).lower()
-            
+
             if compounds.has_section(carValue + "_" + tyreCompoundCleaned):
                 try:
                     idealPressureFront = int(compounds.get(carValue + "_" + tyreCompoundCleaned, "IDEAL_PRESSURE_F"))
                     idealPressureRear = int(compounds.get(carValue + "_" + tyreCompoundCleaned, "IDEAL_PRESSURE_R"))
                     minimumOptimalTemperature = int(compounds.get(carValue + "_" + tyreCompoundCleaned, "MIN_OPTIMAL_TEMP"))
                     maximumOptimalTemperature = int(compounds.get(carValue + "_" + tyreCompoundCleaned, "MAX_OPTIMAL_TEMP"))
-                    # ac.console("Tyres: {}, {}psi/{}psi, {}°C-{}°C".format(tyreCompoundValue, idealPressureFront, idealPressureRear, minimumOptimalTemperature, maximumOptimalTemperature))
                 except:
                     ac.console("Error loading tyre data.")
             elif modCompounds.has_section(carValue + "_" + tyreCompoundCleaned):
@@ -344,8 +350,6 @@ def acUpdate(deltaT):
         currentLapValue = info.graphics.iCurrentTime
         lapValue = ac.getCarState(0, acsys.CS.LapCount)
         lapProgressValue = ac.getCarState(0, acsys.CS.NormalizedSplinePosition)
-        drsAvailableValue = ac.getCarState(0, acsys.CS.DrsAvailable)
-        drsEnabledValue = ac.getCarState(0, acsys.CS.DrsEnabled)
 
         # =================================================================================================================
         #                                                  DRS
@@ -356,22 +360,17 @@ def acUpdate(deltaT):
         # =================================================================================================================
         #                                        DRS SIMPLE (not races)
         # =================================================================================================================
-        
+
         if info.graphics.session != 2 and ac.getCarName(0) in DRS_ALLOWED_CARS:
             if drsEnabledValue:
-                ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
-                ac.setVisible(drsLabel, 1)
+                set_drs_good()
             elif drsAvailableValue:
-                ac.setBackgroundTexture(drsLabel, DRS_AVAILABLE_TEXTURE)
-                ac.setVisible(drsLabel, 1)
+                set_drs_available()
 
                 if not soundPlaying and SOUND_ON: # use this variable to control drs beep at begining of drs
                     sound_player.play(audio)
                     sound_player.stop()
-                    # timer = threading.Timer(0.1, sound_player.stop)
-                    # timer.start()
                     soundPlaying = True
-
             else:
                 soundPlaying = False
                 ac.setVisible(drsLabel, 0)
@@ -379,84 +378,25 @@ def acUpdate(deltaT):
         # =================================================================================================================
         #                                          DRS DATA COLLECTION
         # =================================================================================================================
-        
+
         if info.graphics.session == 2 and ac.getCarName(0) in DRS_ALLOWED_CARS:
 
+            crossedDetectionZones = []
+            crossedEndZone = -1
+            crossedStartZone = -1
             curTime = time.time()
-            clientCrossedDRS = -1 # index of DRS zone crossed during this update
-
-            driverList = []
-            for index in range(totalDrivers):
-                driver = {
-                    "spline":       ac.getCarState(index, acsys.CS.NormalizedSplinePosition),
-                    "lastDRS":      0,
-                    "DRStime":      0
-                    }
-
-                if len(lastList) > index:
-                    # if lastList contains items copy items and check for DRS zone crossings
-                    lastTick = lastList[index] # details about driver form last update
-                    # copy relevant data
-                    if lastTick is not None:
-                        driver["lastDRS"] = lastTick["lastDRS"]
-                        driver["DRStime"] = lastTick["DRStime"]
-
-                    #spline distance travelled
-                    splineDist = driver["spline"] - lastTick["spline"]
-
-                    for id, zone in enumerate(drsData.zones):
-                        # loop over DRS data
-                        # check for crossing of any drs detection line
-                        if splineDist > -0.8:
-                            #not a new lap
-                            if driver["spline"] >= zone["detection"] and lastTick["spline"] < zone["detection"]:
-                                #driver crossed DRS detect line
-                                driver["lastDRS"] = id
-                                if index == 0:
-                                    clientCrossedDRS = id
-                                elapsedTime = curTime - lastTime
-                                distTravelled = splineDist * trackLength
-                                avgSpd = elapsedTime/distTravelled
-                                distToLine = (zone["detection"] - lastTick["spline"]) * trackLength
-
-                                #set crossed time via interpolation
-                                driver["DRStime"] = lastTime + distToLine * avgSpd
-                                break
-
-                        elif zone["detection"] < 0.1:
-                            #new lap and zone just after S/F
-                            if driver["spline"] >= zone["detection"] and lastTick["spline"]-1 < zone["detection"]:
-                                #driver crossed DRS detect line
-                                driver["lastDRS"] = id
-                                if index == 0:
-                                    clientCrossedDRS = id
-                                elapsedTime = curTime - lastTime
-                                distTravelled = (driver["spline"] + (1-lastTick["spline"])) * trackLength
-                                avgSpd = elapsedTime/distTravelled
-                                distToLine = (driver["spline"] - zone["detection"]) * trackLength
-
-                                #set crossed time via interpolation
-                                driver["DRStime"] = curTime - distToLine * avgSpd
-                                break
-
-                        elif zone["detection"] > 0.9:
-                            #new lap and zone just before S/F
-                            if driver["spline"] + 1 >= zone["detection"] and lastTick["spline"] < zone["detection"]:
-                                #driver crossed DRS detect line
-                                driver["lastDRS"] = id
-                                if index == 0:
-                                    clientCrossedDRS = id
-                                elapsedTime = curTime - lastTime
-                                distTravelled = (driver["spline"] + (1-lastTick["spline"])) * trackLength
-                                avgSpd = elapsedTime/distTravelled
-                                distToLine = (zone["detection"] - lastTick["spline"]) * trackLength
-
-                                #set crossed time via interpolation
-                                driver["DRStime"] = lastTime + distToLine * avgSpd
-                                break
-
-                driverList.append(driver)
-
+            for i in range(totalDrivers):
+                spline = ac.getCarState(i, acsys.CS.NormalizedSplinePosition)
+                for zid, zone in enumerate(drsZones):
+                    if driver_crossed_zone(driversList[i].last_pos, zone['detection'], spline):
+                        driversList[i].drs_detection_times[zid] = curTime
+                        if i == 0: # current driver
+                            crossedDetectionZones.append(zid) # mark zone crossed by driver (possible to cross multiple zone)
+                    if i == 0 and driver_crossed_zone(driversList[i].last_pos, zone['end'], spline):
+                        crossedEndZone = zid
+                    if i == 0 and driver_crossed_zone(driversList[i].last_pos, zone['start'], spline):
+                        crossedStartZone = zid
+                driversList[i].last_pos = spline
 
         # =================================================================================================================
         #                                          DRS ALLOWANCE MANAGEMENT
@@ -465,126 +405,55 @@ def acUpdate(deltaT):
             # Race Restart
             if info.graphics.completedLaps == 0 and info.graphics.iCurrentTime == 0:
                 totalPenalty = 0 # reset penalty
-                ac.setVisible(drsPenaltyLabel, 0)
-        
-            # Check if client crossed detection and within drsGap of another car
-            if clientCrossedDRS != -1:
-                myCar = driverList[0]
-                drsValid = False
-                inDrsZone = True
-                drsPenAwarded = False
+                set_drs_penalty()
 
-                #DRS from lap x
-                if info.graphics.completedLaps+1 >= DRS_STARTS_ON_LAP:
-                    #check for 1s rule
-                    for index, car in enumerate(driverList):
-                        if index == 0:
-                            continue
-                        if car["lastDRS"] == myCar["lastDRS"] and myCar["DRStime"] - car["DRStime"] <= DRS_GAP:
-                            drsValid = True
-                            # ac.console("And I can use it:  car %d, gap %f. Me: %f other %f" % (index, (myCar["DRStime"] - car["DRStime"]), myCar["DRStime"], car["DRStime"]))
-                            ac.setBackgroundTexture(drsLabel, DRS_POSSIBLE_TEXTURE)
-                            ac.setVisible(drsLabel, 1)
-                            break
+            # DRS DETECTION Zone crossed
+            if crossedDetectionZones:
+                if info.graphics.completedLaps + 1 >= DRS_STARTS_ON_LAP: # if this is a valid lap
+                    for z in crossedDetectionZones:
+                    # check if there is any driver within DRS_GAP
+                        if any(driversList[0].drs_detection_times[z] - driver.drs_detection_times[z] <= DRS_GAP for driver in driversList[1:]):
+                            set_drs_possible()
+                            drsAvailableZones[z] = True
+                else:
+                    drsAvailableZones[z] = True
 
-            elif inDrsZone:
-                # Didnt cross a line and in a zone so check to see if I leave it and DRS used only if valid
-                zone  = drsData.zones[driverList[0]["lastDRS"]] # data of DRS zone in at last step
+            # DRS END Zone crossed
+            if crossedEndZone != -1:
+                drsAvailableZones[crossedEndZone] = False
+                currentDrsZone = -1
+                drsPenaltyAwardedInZone = False
+                # if next zone allows for drs already -- for cases where 1 DRS detection is used in 2 zones
+                if drsAvailableZones[(crossedEndZone +1) % len(drsAvailableZones)]: set_drs_possible()
+                else: set_drs_hidden()
 
-                # Check DRS used correctly and penalty not already awarded for this zone
-                if info.physics.drs > 0 and drsValid is False:
+            # DRS START Zone crossed
+            if crossedStartZone != -1:
+                currentDrsZone = crossedStartZone
 
-                    ac.setBackgroundTexture(drsLabel, DRS_BAD_TEXTURE)
-                    ac.setVisible(drsLabel, 1)
-                    totalPenalty += curTime - lastTime
-                    if totalPenalty > 1:
-                        ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
-                        ac.setVisible(drsPenaltyLabel, 1)
-                        ac.setVisible(drsPenaltyBackgroundLabel, 1)
+            # IN DRS ZONE
+            if drsAvailableValue:
+                if drsAvailableZones[currentDrsZone]:
+                    if drsEnabledValue:
+                        set_drs_good()
+                    else:
+                        set_drs_available()
+                        if totalPenalty > 0: totalPenalty -= curTime - lastTime
+                        set_drs_penalty(totalPenalty)
+                else:
+                    if drsEnabledValue:
+                        set_drs_bad()
+                        if not drsPenaltyAwardedInZone:
+                            drsPenaltyAwardedInZone = True
+                            announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use, Zone %d" % (currentDrsZone))
+                        # Add penalty amount
+                        totalPenalty += curTime - lastTime
+                        set_drs_penalty(totalPenalty)
+                    else:
+                        set_drs_hidden()
 
-                    if not drsPenAwarded:
-                        drsPenAwarded = True
-                        # ac.console(APP_NAME + ": Illegal DRS use.")
-                        announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use, Zone %d" % (driverList[0]["lastDRS"] + 1))
-
-                    if not soundPlaying and SOUND_ON:
-                        sound_player.play(audio)
-                        soundPlaying = True
-
-                # Saftey check for end line near S/F. (not sure necessary)
-                if zone["end"] > 0.95 and driverList[0]["spline"] < 0.1:
-                    inDrsZone = False
-                    drsValid = False
-                    drsPenAwarded = False
-
-                    ac.setVisible(drsLabel, 0)
-                    sound_player.stop()
-                    soundPlaying = False
-                    # ac.console("OFF")
-
-                # Turn off zone when leave
-                if driverList[0]["spline"] >= zone["end"] and lastList[0]["spline"] < zone["end"]:
-                    inDrsZone = False
-                    drsValid = False
-                    drsPenAwarded = False
-
-                    ac.setVisible(drsLabel, 0)
-                    sound_player.stop()
-                    soundPlaying = False
-                    # ac.console("OFF")
-
-                # Play a beep when crossing start line and DRS valid
-                if SOUND_ON and drsValid and driverList[0]["spline"] >= zone["start"] and lastList[0]["spline"] < zone["start"]:
-                    sound_player.play(audio)
-                    #stop in 0.5s (double beep)
-                    timer = threading.Timer(0.5, sound_player.stop)
-                    timer.start()
-
-                if drsAvailableValue and drsValid and not drsEnabledValue and totalPenalty > 0:
-                    totalPenalty -= curTime - lastTime
-                    ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
-                    if totalPenalty < 1:
-                        ac.setVisible(drsPenaltyLabel, 0)
-                        ac.setVisible(drsPenaltyBackgroundLabel, 0)
-
-                if not drsEnabledValue and drsAvailableValue:
-                    if drsValid:
-                        ac.setBackgroundTexture(drsLabel, DRS_AVAILABLE_TEXTURE)
-                    else: # turn of the sound
-                        ac.setVisible(drsLabel, 0)
-                        sound_player.stop()
-                        soundPlaying = False
-
-                if drsEnabledValue and drsValid:
-                    ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
-
-            elif info.physics.drs > 0:
-                #enabled DRS at start of race
-                if lastDRSLevel == 0:
-                    ac.setBackgroundTexture(drsLabel, DRS_BAD_TEXTURE)
-                    ac.setVisible(drsLabel, 1)
-                    totalPenalty += curTime - lastTime
-                    if totalPenalty > 1:
-                        ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
-                        ac.setVisible(drsPenaltyLabel, 1)
-                        ac.setVisible(drsPenaltyBackgroundLabel, 1)
-
-                    if not drsPenAwarded:
-                        drsPenAwarded = True
-                        # ac.console(APP_NAME + ": Illegal DRS use.")
-                        announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use on Race Start")
-
-                    if not soundPlaying and SOUND_ON:
-                        sound_player.play(audio)
-                        soundPlaying = True
-            else:
-                # Only used at the start of the race
-                ac.setVisible(drsLabel, 0)
-
-            # end of update save current values into lasts
+            # end of drs update save current values into lasts
             lastTime = curTime
-            lastList = driverList
-            lastDRSLevel = info.physics.drs
 
         # =================================================================================================================
         #                                              ERS LABEL
@@ -597,7 +466,7 @@ def acUpdate(deltaT):
         ac.setFontColor(ersModeLabel, *ERS_COLORS[ersMode])
         ac.setFontColor(ersLabel, *ERS_COLORS[ersMode])
         ac.setFontColor(ersRecoveryLabel, *ERS_COLORS[ersMode])
-        
+
         # =================================================================================================================
         #                                              FUEL LABEL
         # =================================================================================================================
@@ -626,7 +495,7 @@ def acUpdate(deltaT):
             else:
                 ac.setBackgroundOpacity(label, 0)
             ac.setBackgroundOpacity(label, 1) # background colors start to hyde for some reason so this is needed
-        
+
         for i, label in enumerate(tyrePressureLabels):
             if idealPressureFront and idealPressureRear:
                 if i < 2: # front
@@ -635,7 +504,7 @@ def acUpdate(deltaT):
                     ac.setText(label, "{:+.1f}".format(tyrePressureValue[i] - idealPressureRear))
             else:
                 ac.setText(label, "{:.0f}".format(tyrePressureValue[i]))
-        
+
     # =================================================================================================================
     #                                     CALCULATE AT LAP ENDING OR LAP START
     # =================================================================================================================
@@ -662,41 +531,81 @@ def acUpdate(deltaT):
 # END OF AC_UPDATE
 # ========================================================================================
 
-class drs:
-    def __init__(self):
-        self.zones = []
-        self.loadZones()
-        self.valid = False
+def loadDRSZones():
+    zones = []
+    try:
+        track_name = ac.getTrackName(0)
+        track_config = ac.getTrackConfiguration(0)
+        if track_config is not None:
+            drsIni = "content\\tracks\\%s\\%s\\%s" % (
+                track_name, track_config, "data\\drs_zones.ini")
+        else:
+            drsIni = "content\\tracks\\%s\\%s" % (
+                track_name, "data\\drs_zones.ini")
+        drsExists = os.path.isfile(drsIni)
 
-    def loadZones(self):
-        try:
-            track_name = ac.getTrackName(0)
-            track_config = ac.getTrackConfiguration(0)
-            if track_config is not None:
-                drsIni = "content\\tracks\\%s\\%s\\%s" % (
-                    track_name, track_config, "data\\drs_zones.ini")
-            else:
-                drsIni = "content\\tracks\\%s\\%s" % (
-                    track_name, "data\\drs_zones.ini")
-            drsExists = os.path.isfile(drsIni)
+        if drsExists:
+            config = configparser.ConfigParser()
+            config.read(drsIni)
+            for zone in config.sections():
+                zone_info = {
+                    "detection": float(config[zone]['DETECTION']),
+                    "start": float(config[zone]['START']),
+                    "end": float(config[zone]['END'])
+                }
+                zones.append(zone_info)
+        else:
+            ac.console(APP_NAME + ": could not find drs_zones.ini file")
+            return False
+    except Exception as e:
+        ac.console(APP_NAME + ": Error in loadDrsZones: %s" % e)
+    return zones
 
-            if drsExists:
-                config = configparser.ConfigParser()
-                config.read(drsIni)
-                # ac.log('zone sections: %s' % str(config.sections()))
-                for zone in config.sections():
-                    zone_info = {
-                        "detection": float(config[zone]['DETECTION']),
-                        "start": float(config[zone]['START']),
-                        "end": float(config[zone]['END'])
-                    }
-                    # ac.console(APP_NAME + ': zone %s' % str(zone_info))
-                    self.zones.append(zone_info)
-            else:
-                ac.console(APP_NAME + ": could not find drs_zones.ini file")
-                return False
-        except Exception as e:
-            ac.console(APP_NAME + ": Error in loadDrsZones: %s" % e)
+class Driver:
+    def __init__(self, id, n_drs_zones):
+        self.id = id
+        self.last_pos = 0
+        self.drs_detection_times = [0] * n_drs_zones
+
+def driver_crossed_zone(last, zone, current):
+    '''Check if detection is between current and last'''
+    if current < last: # crossed start/finish line
+        return last < zone or zone <= current
+    return last < zone <= current
+
+def set_drs_bad():
+    global drsLabel
+    ac.setBackgroundTexture(drsLabel, DRS_BAD_TEXTURE)
+    ac.setVisible(drsLabel, 1)
+
+def set_drs_possible():
+    global drsLabel
+    ac.setBackgroundTexture(drsLabel, DRS_POSSIBLE_TEXTURE)
+    ac.setVisible(drsLabel, 1)
+
+def set_drs_available():
+    global drsLabel
+    ac.setBackgroundTexture(drsLabel, DRS_AVAILABLE_TEXTURE)
+    ac.setVisible(drsLabel, 1)
+
+def set_drs_good():
+    global drsLabel
+    ac.setBackgroundTexture(drsLabel, DRS_GOOD_TEXTURE)
+    ac.setVisible(drsLabel, 1)
+
+def set_drs_hidden():
+    global drsLabel
+    ac.setVisible(drsLabel, 0)
+
+def set_drs_penalty(totalPenalty):
+    global drsPenaltyLabel, drsPenaltyBackgroundLabel
+    if totalPenalty > 1:
+        ac.setText(drsPenaltyLabel, "Penalty: +%ds" % totalPenalty)
+        ac.setVisible(drsPenaltyLabel, 1)
+        ac.setVisible(drsPenaltyBackgroundLabel, 1)
+    else:
+        ac.setVisible(drsPenaltyLabel, 0)
+        ac.setVisible(drsPenaltyBackgroundLabel, 0)
 
 def getTrackLength():
     try:
@@ -723,8 +632,6 @@ def announceTotalPenalty(driver_name, lap):
 def announceStart():
     if SERVERS and any(ac.getServerName().startswith(x) for x in SERVERS):
         driver_name = ac.getDriverName(0)
-        ac.console('HERE')
         digest = hashlib.md5(open("apps/python/%s/%s.py" % (APP_NAME, APP_NAME), 'rb').read()).hexdigest()
-        ac.console(digest)
         ac.sendChatMessage(APP_NAME + " %s : %s --> %s" % (VERSION, driver_name, digest))
 
