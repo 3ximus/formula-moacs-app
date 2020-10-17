@@ -26,7 +26,7 @@ from sound_player import SoundPlayer
 
 APP_NAME = "DRSManager"
 FONT_NAME = "Orbitron"
-VERSION = '1.5'
+VERSION = '1.6'
 
 # DEFAULT SETTINGS
 DRS_ALLOWED_CARS = ['rss_formula_hybrid_2020', 'rss_formula_rss_3_v6', 'af1_f3'] # MANDATORY
@@ -381,7 +381,7 @@ def acUpdate(deltaT):
 
         if info.graphics.session == 2 and ac.getCarName(0) in DRS_ALLOWED_CARS:
 
-            crossedDetectionZones = []
+            crossedDetectionZone = -1
             crossedEndZone = -1
             crossedStartZone = -1
             curTime = time.time()
@@ -391,7 +391,7 @@ def acUpdate(deltaT):
                     if driver_crossed_zone(driversList[i].last_pos, zone['detection'], spline):
                         driversList[i].drs_detection_times[zid] = curTime
                         if i == 0: # current driver
-                            crossedDetectionZones.append(zid) # mark zone crossed by driver (possible to cross multiple zone)
+                            crossedDetectionZone = zid # mark zone crossed by driver (not possible to cross multiple zone)
                     if i == 0 and driver_crossed_zone(driversList[i].last_pos, zone['end'], spline):
                         crossedEndZone = zid
                     if i == 0 and driver_crossed_zone(driversList[i].last_pos, zone['start'], spline):
@@ -408,13 +408,13 @@ def acUpdate(deltaT):
                 set_drs_penalty(0)
 
             # DRS DETECTION Zone crossed
-            if crossedDetectionZones:
+            if crossedDetectionZone != -1:
                 if info.graphics.completedLaps + 1 >= DRS_STARTS_ON_LAP: # if this is a valid lap
-                    for z in crossedDetectionZones:
+                    ac.log("Checking Detection Zone: " + str(crossedDetectionZone) + " on lap: " + str(info.graphics.completedLaps))
                     # check if there is any driver within DRS_GAP
-                        if any(driversList[0].drs_detection_times[z] - driver.drs_detection_times[z] <= DRS_GAP for driver in driversList[1:]):
-                            set_drs_possible()
-                            drsAvailableZones[z] = True
+                    if any(driversList[0].drs_detection_times[crossedDetectionZone] - driver.drs_detection_times[crossedDetectionZone] <= DRS_GAP and driversList[0].drs_detection_times[crossedDetectionZone] - driver.drs_detection_times[crossedDetectionZone] >= 0 for driver in driversList[1:]):
+                        set_drs_possible()
+                        drsAvailableZones[crossedDetectionZone] = True
 
             # DRS END Zone crossed
             if crossedEndZone != -1:
@@ -422,8 +422,8 @@ def acUpdate(deltaT):
                 currentDrsZone = -1
                 drsPenaltyAwardedInZone = False
                 # if next zone allows for drs already -- for cases where 1 DRS detection is used in 2 zones
-                if drsAvailableZones[(crossedEndZone +1) % len(drsAvailableZones)]: set_drs_possible()
-                else: set_drs_hidden()
+                if drsAvailableZones[(crossedEndZone + 1) % len(drsAvailableZones)]: set_drs_possible()
+                set_drs_hidden()
 
             # DRS START Zone crossed
             if crossedStartZone != -1:
@@ -445,7 +445,7 @@ def acUpdate(deltaT):
                             drsPenaltyAwardedInZone = True
                             announcePenalty(ac.getDriverName(0), info.graphics.completedLaps + 1, "Illegal DRS use, Zone %d" % (currentDrsZone))
                         # Add penalty amount
-						if abs(curTime - lastTime) < 1: totalPenalty += curTime - lastTime
+                        if abs(curTime - lastTime) < 1: totalPenalty += curTime - lastTime
                         set_drs_penalty(totalPenalty)
                     else:
                         set_drs_hidden()
